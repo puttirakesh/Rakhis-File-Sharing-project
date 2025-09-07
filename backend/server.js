@@ -1,31 +1,22 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
-const multerS3 = require('multer-s3');
-const AWS = require('aws-sdk');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json());
-
-// Configure AWS S3
-const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION || 'us-east-1'
-});
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/teachers-portal', {
@@ -33,9 +24,16 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/teachers-
   useUnifiedTopology: true,
 });
 
-// Schemas
-const TEACHER_KEY = process.env.TEACHER_KEY || 'mysecretkey123';
+// Configure nodemailer
+const transporter = nodemailer.createTransport({
+  service: process.env.EMAIL_SERVICE || 'Gmail',
+  auth: {
+    user: process.env.EMAIL_USERNAME,
+    pass: process.env.EMAIL_PASSWORD
+  }
+});
 
+// Schemas
 const topicSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String },
@@ -45,7 +43,7 @@ const topicSchema = new mongoose.Schema({
 const fileSchema = new mongoose.Schema({
   originalName: { type: String, required: true },
   fileName: { type: String, required: true },
-  fileUrl: { type: String, required: true }, // Changed from filePath to fileUrl
+  filePath: { type: String, required: true },
   fileSize: { type: Number, required: true },
   fileType: { type: String, required: true },
   topic: { type: mongoose.Schema.Types.ObjectId, ref: 'Topic', required: true },
@@ -57,6 +55,8 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['teacher', 'student'], default: 'teacher' },
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -64,21 +64,24 @@ const Topic = mongoose.model('Topic', topicSchema);
 const File = mongoose.model('File', fileSchema);
 const User = mongoose.model('User', userSchema);
 
-// Multer config for AWS S3
-const upload = multer({
-  storage: multerS3({
-    s3: s3,
-    bucket: process.env.S3_BUCKET_NAME,
-    metadata: function (req, file, cb) {
-      cb(null, { fieldName: file.fieldname });
-    },
-    key: function (req, file, cb) {
-      const topicId = req.body.topicId;
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const fileName = `topic_${topicId}/file-${uniqueSuffix}${path.extname(file.originalname)}`;
-      cb(null, fileName);
+// Multer config for multiple files
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const topicId = req.body.topicId;
+    const uploadPath = `uploads/topic_${topicId}`;
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
     }
-  }),
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'file-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
@@ -86,11 +89,11 @@ const upload = multer({
 const auth = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-
+    
     if (!token) {
       return res.status(401).json({ message: 'No token, authorization denied' });
     }
-
+    
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
     req.user = await User.findById(decoded.id).select('-password');
     next();
@@ -109,20 +112,10 @@ const requireTeacher = (req, res, next) => {
 
 // Routes
 
-// Register route - modified to require the exact key
+// Register route
 app.post('/api/register', async (req, res) => {
   try {
-    const { name, email, password, role, teacherKey } = req.body;
-    
-    // Check if teacher key is provided and exactly matches the required key
-    if (role === 'teacher') {
-      if (!teacherKey) {
-        return res.status(400).json({ message: 'Teacher key is required for teacher registration' });
-      }
-      if (teacherKey !== TEACHER_KEY) {
-        return res.status(400).json({ message: 'Invalid teacher key. Access denied.' });
-      }
-    }
+    const { name, email, password, role } = req.body;
     
     // Check if user exists
     let user = await User.findOne({ email });
@@ -135,7 +128,7 @@ app.post('/api/register', async (req, res) => {
       name,
       email,
       password,
-      role: role || 'student' // Default to student if not specified
+      role: role || 'teacher'
     });
     
     // Hash password
@@ -151,7 +144,7 @@ app.post('/api/register', async (req, res) => {
     
     jwt.sign(
       payload,
-      process.env.JWT_SECRET || 'super_secret_jwt_key_2024_teachers_portal_secure_token',
+      process.env.JWT_SECRET || 'fallback_secret',
       { expiresIn: '7d' },
       (err, token) => {
         if (err) throw err;
@@ -176,24 +169,24 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
+    
     // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
-
+    
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
-
+    
     // Create JWT
     const payload = {
       id: user.id
     };
-
+    
     jwt.sign(
       payload,
       process.env.JWT_SECRET || 'fallback_secret',
@@ -214,6 +207,93 @@ app.post('/api/login', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Forgot password route
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Don't reveal whether email exists for security
+      return res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+    }
+    
+    // Generate reset token
+    const resetToken = crypto.randomBytes(20).toString('hex');
+    
+    // Set token and expiration (1 hour)
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+    
+    await user.save();
+    
+    // Create reset URL
+    const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
+    
+    // Email content
+    const mailOptions = {
+      to: user.email,
+      from: process.env.EMAIL_FROM || 'noreply@teachersportal.com',
+      subject: 'Password Reset Request - Teacher\'s Portal',
+      text: `You are receiving this because you (or someone else) have requested a password reset for your account.\n\n
+        Please click on the following link, or paste it into your browser to complete the process:\n\n
+        ${resetUrl}\n\n
+        If you did not request this, please ignore this email and your password will remain unchanged.\n`
+    };
+    
+    // Send email
+    await transporter.sendMail(mailOptions);
+    
+    res.json({ message: 'If an account with that email exists, a password reset link has been sent.' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error sending password reset email' });
+  }
+});
+
+// Reset password route
+app.post('/api/reset-password/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+    
+    // Find user with valid reset token
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+    
+    if (!user) {
+      return res.status(400).json({ message: 'Password reset token is invalid or has expired' });
+    }
+    
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    
+    // Clear reset token fields
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    
+    await user.save();
+    
+    // Send confirmation email
+    const mailOptions = {
+      to: user.email,
+      from: process.env.EMAIL_FROM || 'noreply@teachersportal.com',
+      subject: 'Your password has been changed - Teacher\'s Portal',
+      text: `Hello,\n\nThis is a confirmation that the password for your account ${user.email} has just been changed.\n`
+    };
+    
+    await transporter.sendMail(mailOptions);
+    
+    res.json({ message: 'Password successfully reset' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error resetting password' });
   }
 });
 
@@ -264,8 +344,8 @@ app.post('/api/upload', auth, requireTeacher, upload.array('files'), async (req,
     for (const file of req.files) {
       const newFile = new File({
         originalName: file.originalname,
-        fileName: file.key,
-        fileUrl: file.location, // S3 file URL
+        fileName: file.filename,
+        filePath: file.path,
         fileSize: file.size,
         fileType: file.mimetype,
         topic: topicId
@@ -273,7 +353,7 @@ app.post('/api/upload', auth, requireTeacher, upload.array('files'), async (req,
       await newFile.save();
       files.push(newFile);
     }
-
+    
     res.status(201).json(files);
   } catch (error) {
     console.error('Upload error:', error);
@@ -281,14 +361,17 @@ app.post('/api/upload', auth, requireTeacher, upload.array('files'), async (req,
   }
 });
 
-// Download a file - redirect to S3 URL
+// Download a file
 app.get('/api/download/:fileId', async (req, res) => {
   try {
     const file = await File.findById(req.params.fileId);
     if (!file) return res.status(404).json({ message: 'File not found' });
-
-    // Redirect to the S3 URL for download
-    res.redirect(file.fileUrl);
+    
+    if (!fs.existsSync(file.filePath)) {
+      return res.status(404).json({ message: 'File not found on server' });
+    }
+    
+    res.download(file.filePath, file.originalName);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -299,23 +382,13 @@ app.delete('/api/files/:fileId', auth, requireTeacher, async (req, res) => {
   try {
     const file = await File.findById(req.params.fileId);
     if (!file) return res.status(404).json({ message: 'File not found' });
-
-    // Delete from S3
-    const params = {
-      Bucket: process.env.S3_BUCKET_NAME,
-      Key: file.fileName
-    };
-
-    s3.deleteObject(params, async (err) => {
-      if (err) {
-        console.error('Error deleting file from S3:', err);
-        return res.status(500).json({ message: 'Error deleting file from storage' });
-      }
-
-      // Delete from database
-      await File.findByIdAndDelete(req.params.fileId);
-      res.json({ message: 'File deleted successfully' });
-    });
+    
+    if (fs.existsSync(file.filePath)) {
+      fs.unlinkSync(file.filePath);
+    }
+    
+    await File.findByIdAndDelete(req.params.fileId);
+    res.json({ message: 'File deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -329,15 +402,11 @@ app.delete('/api/topics/:topicId', auth, requireTeacher, async (req, res) => {
     // Find all files in topic
     const filesInTopic = await File.find({ topic: topicId });
 
-    // Delete files from S3
+    // Delete files from filesystem
     for (const file of filesInTopic) {
-      const params = {
-        Bucket: process.env.S3_BUCKET_NAME,
-        Key: file.fileName
-      };
-      s3.deleteObject(params).promise().catch(err => {
-        console.error('Error deleting file from S3:', err);
-      });
+      if (fs.existsSync(file.filePath)) {
+        fs.unlinkSync(file.filePath);
+      }
     }
 
     // Delete files from DB
@@ -345,6 +414,12 @@ app.delete('/api/topics/:topicId', auth, requireTeacher, async (req, res) => {
 
     // Delete the topic itself
     await Topic.findByIdAndDelete(topicId);
+
+    // Delete folder from disk
+    const folderPath = path.join(__dirname, 'uploads', `topic_${topicId}`);
+    if (fs.existsSync(folderPath)) {
+      fs.rmSync(folderPath, { recursive: true, force: true });
+    }
 
     res.json({ message: 'Topic and associated files deleted successfully' });
   } catch (error) {
@@ -377,9 +452,9 @@ app.put('/api/topics/:topicId', auth, requireTeacher, async (req, res) => {
       { title, description },
       { new: true }
     );
-
+    
     if (!topic) return res.status(404).json({ message: 'Topic not found' });
-
+    
     res.json(topic);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -390,10 +465,6 @@ app.put('/api/topics/:topicId', auth, requireTeacher, async (req, res) => {
 app.use((error, req, res, next) => {
   console.error(error);
   res.status(500).json({ message: 'Internal server error' });
-});
-
-app.get('/', (req, res) => {
-  res.redirect(process.env.CLIENT_URL);
 });
 
 app.listen(PORT, () => {
