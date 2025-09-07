@@ -45,7 +45,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/teachers-portal', {
@@ -359,7 +359,7 @@ app.get('/api/topics/:topicId/files', async (req, res) => {
 });
 
 // Upload multiple files
-app.post('/api/upload', auth, requireTeacher, upload.array('files'), async (req, res) => {
+app.post('/api/files', auth, requireTeacher, upload.array('files'), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'No files uploaded' });
