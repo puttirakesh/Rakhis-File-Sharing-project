@@ -14,14 +14,35 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors({
-  origin: [
-    'https://file-sharing-webapp-k4ep.vercel.app',
-    'https://file-sharing-webapp-mu.vercel.app',
-    'http://localhost:3000'
-  ],
-  credentials: true
-}));
+// Middleware - CORS configuration
+const allowedOrigins = [
+  'https://file-sharing-webapp-k4ep.vercel.app',
+  'https://file-sharing-webapp-mu.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:5173' // Add if using Vite dev server
+];
+
+app.use((req, res, next) => {
+  console.log('Incoming request from origin:', req.headers.origin);
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Disposition');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    console.log('Handling preflight request');
+    return res.sendStatus(200);
+  }
+  
+  next();
+});
 
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
