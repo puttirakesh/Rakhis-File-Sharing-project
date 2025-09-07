@@ -19,8 +19,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 
 // Use Vite environment variables
-const API_URL = import.meta.env.VITE_SERVER_URL || '';
-
+const API_URL = import.meta.env.VITE_SERVER_URL || 'https://file-sharing-webapp-mu.vercel.app';
 // Set default fetch headers
 const fetchDefaults = {
   headers: {
