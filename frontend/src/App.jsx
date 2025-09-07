@@ -18,9 +18,8 @@ import {
   faUserPlus
 } from '@fortawesome/free-solid-svg-icons';
 
-require('dotenv').config();
-
-const API_URL = import.meta.env.VITE_SERVER_URL;
+// Use Vite environment variables
+const API_URL = import.meta.env.VITE_SERVER_URL || '';
 
 // Set default fetch headers
 const fetchDefaults = {
