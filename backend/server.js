@@ -1,6 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
+const multerS3 = require('multer-s3');
+const AWS = require('aws-sdk');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -12,9 +14,18 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Configure AWS S3
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION || 'us-east-1'
+});
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/teachers-portal', {
@@ -23,7 +34,6 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/teachers-
 });
 
 // Schemas
-
 const TEACHER_KEY = process.env.TEACHER_KEY || 'mysecretkey123';
 
 const topicSchema = new mongoose.Schema({
@@ -35,7 +45,7 @@ const topicSchema = new mongoose.Schema({
 const fileSchema = new mongoose.Schema({
   originalName: { type: String, required: true },
   fileName: { type: String, required: true },
-  filePath: { type: String, required: true },
+  fileUrl: { type: String, required: true }, // Changed from filePath to fileUrl
   fileSize: { type: Number, required: true },
   fileType: { type: String, required: true },
   topic: { type: mongoose.Schema.Types.ObjectId, ref: 'Topic', required: true },
@@ -50,30 +60,25 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-
-
 const Topic = mongoose.model('Topic', topicSchema);
 const File = mongoose.model('File', fileSchema);
 const User = mongoose.model('User', userSchema);
 
-// Multer config for multiple files
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const topicId = req.body.topicId;
-    const uploadPath = `uploads/topic_${topicId}`;
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'file-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
+// Multer config for AWS S3
 const upload = multer({
-  storage: storage,
+  storage: multerS3({
+    s3: s3,
+    bucket: process.env.S3_BUCKET_NAME,
+    metadata: function (req, file, cb) {
+      cb(null, { fieldName: file.fieldname });
+    },
+    key: function (req, file, cb) {
+      const topicId = req.body.topicId;
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const fileName = `topic_${topicId}/file-${uniqueSuffix}${path.extname(file.originalname)}`;
+      cb(null, fileName);
+    }
+  }),
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB
 });
 
@@ -259,8 +264,8 @@ app.post('/api/upload', auth, requireTeacher, upload.array('files'), async (req,
     for (const file of req.files) {
       const newFile = new File({
         originalName: file.originalname,
-        fileName: file.filename,
-        filePath: file.path,
+        fileName: file.key,
+        fileUrl: file.location, // S3 file URL
         fileSize: file.size,
         fileType: file.mimetype,
         topic: topicId
@@ -276,17 +281,14 @@ app.post('/api/upload', auth, requireTeacher, upload.array('files'), async (req,
   }
 });
 
-// Download a file
+// Download a file - redirect to S3 URL
 app.get('/api/download/:fileId', async (req, res) => {
   try {
     const file = await File.findById(req.params.fileId);
     if (!file) return res.status(404).json({ message: 'File not found' });
 
-    if (!fs.existsSync(file.filePath)) {
-      return res.status(404).json({ message: 'File not found on server' });
-    }
-
-    res.download(file.filePath, file.originalName);
+    // Redirect to the S3 URL for download
+    res.redirect(file.fileUrl);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -298,12 +300,22 @@ app.delete('/api/files/:fileId', auth, requireTeacher, async (req, res) => {
     const file = await File.findById(req.params.fileId);
     if (!file) return res.status(404).json({ message: 'File not found' });
 
-    if (fs.existsSync(file.filePath)) {
-      fs.unlinkSync(file.filePath);
-    }
+    // Delete from S3
+    const params = {
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: file.fileName
+    };
 
-    await File.findByIdAndDelete(req.params.fileId);
-    res.json({ message: 'File deleted successfully' });
+    s3.deleteObject(params, async (err) => {
+      if (err) {
+        console.error('Error deleting file from S3:', err);
+        return res.status(500).json({ message: 'Error deleting file from storage' });
+      }
+
+      // Delete from database
+      await File.findByIdAndDelete(req.params.fileId);
+      res.json({ message: 'File deleted successfully' });
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -317,11 +329,15 @@ app.delete('/api/topics/:topicId', auth, requireTeacher, async (req, res) => {
     // Find all files in topic
     const filesInTopic = await File.find({ topic: topicId });
 
-    // Delete files from filesystem
+    // Delete files from S3
     for (const file of filesInTopic) {
-      if (fs.existsSync(file.filePath)) {
-        fs.unlinkSync(file.filePath);
-      }
+      const params = {
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: file.fileName
+      };
+      s3.deleteObject(params).promise().catch(err => {
+        console.error('Error deleting file from S3:', err);
+      });
     }
 
     // Delete files from DB
@@ -329,12 +345,6 @@ app.delete('/api/topics/:topicId', auth, requireTeacher, async (req, res) => {
 
     // Delete the topic itself
     await Topic.findByIdAndDelete(topicId);
-
-    // Delete folder from disk
-    const folderPath = path.join(__dirname, 'uploads', `topic_${topicId}`);
-    if (fs.existsSync(folderPath)) {
-      fs.rmSync(folderPath, { recursive: true, force: true });
-    }
 
     res.json({ message: 'Topic and associated files deleted successfully' });
   } catch (error) {
@@ -382,9 +392,9 @@ app.use((error, req, res, next) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
-app.get('/',(req, res)=>{
+app.get('/', (req, res) => {
   res.redirect(process.env.CLIENT_URL);
-})
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

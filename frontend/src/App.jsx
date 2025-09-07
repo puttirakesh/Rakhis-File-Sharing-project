@@ -18,6 +18,7 @@ import {
   faUserPlus
 } from '@fortawesome/free-solid-svg-icons';
 
+require('dotenv').config();
 
 const API_URL = import.meta.env.VITE_SERVER_URL;
 
