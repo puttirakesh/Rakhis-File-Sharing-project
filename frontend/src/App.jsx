@@ -139,45 +139,45 @@ function App() {
       .catch(() => setMessage('Failed to create topic!'));
   };
 
-  const handleFileUpload = (e) => {
-    e.preventDefault();
-    if (!uploadFiles.length || !uploadTopicId) {
-      setMessage('Please select files and a topic');
-      return;
-    }
+  // const handleFileUpload = (e) => {
+  //   e.preventDefault();
+  //   if (!uploadFiles.length || !uploadTopicId) {
+  //     setMessage('Please select files and a topic');
+  //     return;
+  //   }
 
     
-    const formData = new FormData();
-    Array.from(uploadFiles).forEach(file => {
-      formData.append('files', file);
-    });
-    formData.append('topicId', uploadTopicId);
+  //   const formData = new FormData();
+  //   Array.from(uploadFiles).forEach(file => {
+  //     formData.append('files', file);
+  //   });
+  //   formData.append('topicId', uploadTopicId);
 
-    // Remove JSON content type for FormData
-    const { 'Content-Type': _, ...headers } = fetchDefaults.headers;
+  //   // Remove JSON content type for FormData
+  //   const { 'Content-Type': _, ...headers } = fetchDefaults.headers;
 
-    fetch(`${API_URL}/api/upload`, {
-      method: 'POST',
-      headers: headers,
-      body: formData,
-    })
-      .then(res => {
-        if (res.status === 401) {
-          setMessage('Please login to upload files');
-          return null;
-        }
-        return res.json();
-      })
-      .then(uploadedFiles => {
-        if (uploadedFiles) {
-          setMessage('Files uploaded successfully!');
-          setIsModalOpen(false);
-          setUploadFiles([]);
-          setFiles([...uploadedFiles, ...files]);
-        }
-      })
-      .catch(() => setMessage('Failed to upload files!'));
-  };
+  //   fetch(`${API_URL}/api/upload`, {
+  //     method: 'POST',
+  //     headers: headers,
+  //     body: formData,
+  //   })
+  //     .then(res => {
+  //       if (res.status === 401) {
+  //         setMessage('Please login to upload files');
+  //         return null;
+  //       }
+  //       return res.json();
+  //     })
+  //     .then(uploadedFiles => {
+  //       if (uploadedFiles) {
+  //         setMessage('Files uploaded successfully!');
+  //         setIsModalOpen(false);
+  //         setUploadFiles([]);
+  //         setFiles([...uploadedFiles, ...files]);
+  //       }
+  //     })
+  //     .catch(() => setMessage('Failed to upload files!'));
+  // };
 
   const handleFileDownload = (fileId, fileName) => {
     fetch(`${API_URL}/api/download/${fileId}`)
@@ -635,7 +635,7 @@ function App() {
           </div>
         </div>
       )}
-      <FileUpload/>
+      
       {/* Edit File Name Modal */}
       {editNameId && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
