@@ -9,12 +9,7 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors({
-  origin: "https://chandan-kumar-file-sharing-platform-theta.vercel.app",
-  methods: ["GET", "POST"],
-  credentials: true
-}));
+
 app.use(express.json());
 
 // MongoDB Connection
@@ -23,6 +18,24 @@ mongoose.connect(process.env.MONGODB_URI, {
   useUnifiedTopology: true,
 });
 
+
+const allowedOrigins = [
+  "http://localhost:5173", // local dev
+  "https://chandan-kumar-file-sharing-platform-theta.vercel.app",
+  "https://chandan-kumar-file-sharing-platform.vercel.app/"
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
 
 // ========== Schemas ==========
 const topicSchema = new mongoose.Schema({

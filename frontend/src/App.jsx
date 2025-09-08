@@ -17,7 +17,7 @@ import {
   faSignInAlt,
   faUserPlus
 } from '@fortawesome/free-solid-svg-icons';
-
+import FileUpload from './FileUpload';
 // Use Vite environment variables
 const API_URL = import.meta.env.VITE_SERVER_URL;
 // Set default fetch headers
@@ -635,7 +635,7 @@ function App() {
           </div>
         </div>
       )}
-
+      <FileUpload/>
       {/* Edit File Name Modal */}
       {editNameId && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
