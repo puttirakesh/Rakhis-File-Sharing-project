@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-
+import dotenv from "dotenv";
 // no tailwindcss import needed here
 export default defineConfig({
   plugins: [react()],
@@ -8,7 +8,11 @@ export default defineConfig({
   autoprefixer: {},
   server: {
     proxy: {
-      '/api': 'http://localhost:5000'
+      '/api': {
+        target: process.env.VITE_SERVER_URL,
+        changeOrigin: true,
+        secure: true,
+      }
     }
   }
 });

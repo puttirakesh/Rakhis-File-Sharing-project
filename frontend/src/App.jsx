@@ -146,6 +146,7 @@ function App() {
       return;
     }
 
+    
     const formData = new FormData();
     Array.from(uploadFiles).forEach(file => {
       formData.append('files', file);
