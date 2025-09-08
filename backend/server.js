@@ -9,8 +9,6 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-import axios from "axios";
-
 app.use(express.json());
 
 // MongoDB Connection
@@ -305,25 +303,29 @@ app.put("/api/topics/:topicId", auth, requireTeacher, async (req, res) => {
 // Download File (stream from Cloudinary)
 
 
+// Download File (stream from Cloudinary)
 app.get("/api/download/:fileId", auth, async (req, res) => {
   try {
     const file = await File.findById(req.params.fileId);
     if (!file) return res.status(404).json({ message: "File not found" });
 
-    // Force download filename
-    res.setHeader("Content-Disposition", `attachment; filename=${file.fileName}`);
-
-    // Stream from Cloudinary
-    const response = await axios({
-      url: file.filePath, // secure_url saved in DB
-      method: "GET",
-      responseType: "stream",
+    // Get the secure download URL from Cloudinary
+    const downloadUrl = cloudinary.url(file.publicId, {
+      secure: true,
+      resource_type: 'auto',
+      flags: 'attachment'
     });
 
-    response.data.pipe(res);
+    // Set proper headers for download
+    res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
+    res.setHeader('Content-Type', file.fileType);
+    
+    // Redirect to the direct download URL
+    res.redirect(downloadUrl);
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: error.message });
+    console.error("Download error:", error);
+    res.status(500).json({ message: "Failed to download file" });
   }
 });
 

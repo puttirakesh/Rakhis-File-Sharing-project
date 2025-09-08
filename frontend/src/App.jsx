@@ -17,16 +17,9 @@ import {
   faSignInAlt,
   faUserPlus
 } from '@fortawesome/free-solid-svg-icons';
-import FileUpload from './FileUpload';
+
 // Use Vite environment variables
-const API_URL = import.meta.env.VITE_SERVER_URL;
-// Set default fetch headers
-const fetchDefaults = {
-  headers: {
-    'Content-Type': 'application/json'
-  },
-  credentials: 'include'
-};
+const API_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
 
 function App() {
   const [topics, setTopics] = useState([]);
@@ -56,6 +49,20 @@ function App() {
   const [registerRole, setRegisterRole] = useState('teacher');
   const [teacherKey, setTeacherKey] = useState('');
 
+  // Set default fetch headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
+  };
+
   // Check for existing token on app load
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -63,24 +70,10 @@ function App() {
 
     if (token && userData) {
       setUser(JSON.parse(userData));
-      // Set token for all requests
-      setAuthToken(token);
     }
 
     fetchTopics();
   }, []);
-
-  // Function to set auth token in headers
-  const setAuthToken = (token) => {
-    if (token) {
-      fetchDefaults.headers = {
-        ...fetchDefaults.headers,
-        'Authorization': `Bearer ${token}`
-      };
-    } else {
-      delete fetchDefaults.headers['Authorization'];
-    }
-  };
 
   const fetchTopics = () => {
     fetch(`${API_URL}/api/topics`)
@@ -117,7 +110,7 @@ function App() {
     if (!newTopicTitle) return;
     fetch(`${API_URL}/api/topics`, {
       method: "POST",
-      headers: fetchDefaults.headers,
+      headers: getAuthHeaders(),
       body: JSON.stringify({ title: newTopicTitle, description: newTopicDesc })
     })
       .then(res => {
@@ -146,19 +139,18 @@ function App() {
       return;
     }
 
-    
+    const token = localStorage.getItem('token');
     const formData = new FormData();
     Array.from(uploadFiles).forEach(file => {
       formData.append('files', file);
     });
     formData.append('topicId', uploadTopicId);
 
-    // Remove JSON content type for FormData
-    const { 'Content-Type': _, ...headers } = fetchDefaults.headers;
-
     fetch(`${API_URL}/api/upload`, {
       method: 'POST',
-      headers: headers,
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
       body: formData,
     })
       .then(res => {
@@ -180,15 +172,31 @@ function App() {
   };
 
   const handleFileDownload = (fileId, fileName) => {
-    fetch(`${API_URL}/api/download/${fileId}`)
-      .then(res => res.blob())
+    const token = localStorage.getItem('token');
+    
+    fetch(`${API_URL}/api/download/${fileId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+      .then(res => {
+        if (res.status === 401) {
+          setMessage('Please login to download files');
+          return null;
+        }
+        return res.blob();
+      })
       .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.click();
-        window.URL.revokeObjectURL(url);
+        if (blob) {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        }
       })
       .catch(() => setMessage('Failed to download file!'));
   };
@@ -198,7 +206,7 @@ function App() {
 
     fetch(`${API_URL}/api/files/${fileId}`, {
       method: 'DELETE',
-      headers: fetchDefaults.headers
+      headers: getAuthHeaders()
     })
       .then(res => {
         if (res.status === 401) {
@@ -221,7 +229,7 @@ function App() {
 
     fetch(`${API_URL}/api/topics/${topicId}`, {
       method: 'DELETE',
-      headers: fetchDefaults.headers
+      headers: getAuthHeaders()
     })
       .then(res => {
         if (res.status === 401) {
@@ -251,7 +259,7 @@ function App() {
   const handleFileEditSubmit = () => {
     fetch(`${API_URL}/api/files/${editNameId}`, {
       method: "PUT",
-      headers: fetchDefaults.headers,
+      headers: getAuthHeaders(),
       body: JSON.stringify({ newName: editName }),
     })
       .then(res => {
@@ -275,7 +283,7 @@ function App() {
   const handleTopicEditSubmit = () => {
     fetch(`${API_URL}/api/topics/${editTopicId}`, {
       method: "PUT",
-      headers: fetchDefaults.headers,
+      headers: getAuthHeaders(),
       body: JSON.stringify({ title: editTopicTitle, description: editTopicDesc }),
     })
       .then(res => {
@@ -311,7 +319,6 @@ function App() {
           localStorage.setItem('token', data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
           setUser(data.user);
-          setAuthToken(data.token);
           setIsLoginModalOpen(false);
           setLoginEmail('');
           setLoginPassword('');
@@ -344,7 +351,6 @@ function App() {
           localStorage.setItem('token', data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
           setUser(data.user);
-          setAuthToken(data.token);
           setIsRegisterModalOpen(false);
           setRegisterName('');
           setRegisterEmail('');
@@ -364,7 +370,6 @@ function App() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
-    setAuthToken(null);
     setMessage('Logged out successfully');
   };
 
@@ -635,7 +640,7 @@ function App() {
           </div>
         </div>
       )}
-      <FileUpload/>
+
       {/* Edit File Name Modal */}
       {editNameId && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
