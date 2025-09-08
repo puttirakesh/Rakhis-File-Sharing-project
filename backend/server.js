@@ -302,17 +302,30 @@ app.put("/api/topics/:topicId", auth, requireTeacher, async (req, res) => {
 });
 
 // Download File (stream from Cloudinary)
+import axios from "axios";
+
 app.get("/api/download/:fileId", auth, async (req, res) => {
   try {
     const file = await File.findById(req.params.fileId);
     if (!file) return res.status(404).json({ message: "File not found" });
 
-    // Redirect to Cloudinary file URL for direct download
-    res.redirect(file.filePath);
+    // Force download filename
+    res.setHeader("Content-Disposition", `attachment; filename=${file.fileName}`);
+
+    // Stream from Cloudinary
+    const response = await axios({
+      url: file.filePath, // secure_url saved in DB
+      method: "GET",
+      responseType: "stream",
+    });
+
+    response.data.pipe(res);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: error.message });
   }
 });
+
 
 // Error middleware
 app.use((error, req, res, next) => {
