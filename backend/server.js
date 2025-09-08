@@ -301,6 +301,19 @@ app.put("/api/topics/:topicId", auth, requireTeacher, async (req, res) => {
   }
 });
 
+// Download File (stream from Cloudinary)
+app.get("/api/download/:fileId", auth, async (req, res) => {
+  try {
+    const file = await File.findById(req.params.fileId);
+    if (!file) return res.status(404).json({ message: "File not found" });
+
+    // Redirect to Cloudinary file URL for direct download
+    res.redirect(file.filePath);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Error middleware
 app.use((error, req, res, next) => {
   console.error(error);
