@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 
 app.use(cors());
-// Middleware - CORS configuration
+
 // const allowedOrigins = [
 //   'https://file-sharing-webapp-k4ep.vercel.app',
 //   'https://file-sharing-webapp-mu.vercel.app',
@@ -50,7 +50,7 @@ app.use(express.json());
 // app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/teachers-portal', {
+mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
@@ -274,7 +274,7 @@ app.get('/api/topics/:topicId/files', async (req, res) => {
 });
 
 // Upload multiple files
-app.post('/api/uploads', auth, requireTeacher, upload.array('files'), async (req, res) => {
+app.post('/api/upload', auth, requireTeacher, upload.array('files'), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: 'No files uploaded' });
