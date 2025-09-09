@@ -10,6 +10,8 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const crypto = require('crypto');
+
 app.use(express.json());
 
 // MongoDB Connection
@@ -73,9 +75,9 @@ const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
 cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 const storage = new CloudinaryStorage({
@@ -85,14 +87,14 @@ const storage = new CloudinaryStorage({
     if (file.mimetype.startsWith("image")) resource_type = "image";
     else if (file.mimetype.startsWith("video")) resource_type = "video";
     return {
-      folder: `Uploads`,
+      folder: `uploads`,
       public_id: `file-${Date.now()}-${file.originalname}`,
-      resource_type,
+      resource_type: "auto",
     };
   },
 });
 
-const upload = multer({ storage });
+  const upload = multer({ storage });
 
 // Helper to determine resource type from MIME type
 const getResourceType = (mimeType) => {
@@ -355,38 +357,60 @@ app.get("/api/download/:fileId", async (req, res) => {
       return res.status(404).json({ message: "File not found in database" });
     }
 
-    if (!file.filePath) {
-      return res.status(400).json({ message: "Invalid file path in database" });
+    if (!file.filePath || !file.publicId) {
+      return res.status(400).json({ message: "Invalid file path or publicId in database" });
     }
 
     const resourceType = getResourceType(file.fileType);
 
     // Verify file exists in Cloudinary
     try {
-      await cloudinary.api.resource(file.publicId, { resource_type: resourceType });
+      const resource = await cloudinary.api.resource(file.publicId, { resource_type: resourceType });
+      console.log("Cloudinary resource check successful for:", file.publicId);
     } catch (cloudError) {
       console.error("Cloudinary resource check error:", cloudError.message);
       return res.status(404).json({ message: `File not found on Cloudinary: ${file.publicId}` });
     }
 
-    // Generate signed delivery URL using Cloudinary SDK
-    const downloadUrl = cloudinary.url(file.publicId, {
-      resource_type: resourceType,
-      secure: true,
-      sign_url: true  // Enables signed URL for secure access
-    });
+    // Extract version from filePath (e.g., /v1757354202/ -> 1757354202)
+    const versionMatch = file.filePath.match(/\/v(\d+)\//);
+    const version = versionMatch ? versionMatch[1] : null;
+    if (!version) {
+      return res.status(400).json({ message: "Invalid version in filePath" });
+    }
+
+    // Generate signature for delivery URL: SHA-1 of (version/public_id + api_secret), first 8 chars, URL-safe base64
+    const stringToSign = `${version}/${file.publicId}`;
+    const stringWithSecret = stringToSign + process.env.API_SECRET;
+    const hash = crypto
+      .createHash('sha1')
+      .update(stringWithSecret)
+      .digest('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+    const signature = hash.substring(0, 8);
+    const sigComponent = `/s--${signature}--/`;
+
+    // Construct signed URL: https://res.cloudinary.com/<cloud>/raw/upload/v<version>/s--sig--/<public_id>
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const basePath = file.filePath.split(`res.cloudinary.com/${cloudName}`)[1].split('/v' + version)[0]; // Extract base path (e.g., /raw/upload)
+    const signedUrl = `https://res.cloudinary.com/${cloudName}${basePath}/v${version}${sigComponent}${file.publicId}`;
+
+    console.log("Generated signed download URL:", signedUrl); // Debug log
 
     res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(file.originalName)}"`);
     res.setHeader("Content-Type", file.fileType || "application/octet-stream");
 
     const response = await axios({
-      url: downloadUrl,
+      url: signedUrl,
       method: "GET",
       responseType: "stream",
       timeout: 30000,
     }).catch(err => {
+      console.error("Axios error details:", err.response?.status, err.response?.statusText);
       if (err.response?.status === 401) {
-        throw new Error("Unauthorized access to Cloudinary file. Signed URL generation failed.");
+        throw new Error("Unauthorized access to Cloudinary file. Verify API_SECRET and security settings.");
       } else if (err.response?.status === 404) {
         throw new Error(`File not found on Cloudinary: ${file.publicId}`);
       } else {
@@ -408,14 +432,9 @@ app.get("/api/download/:fileId", async (req, res) => {
   } catch (error) {
     console.error("Download error:", error.message);
     if (!res.headersSent) {
-      // Safe status code setting to avoid undefined
-      let statusCode = 500;
-      if (error.message && error.message.includes("404")) {
-        statusCode = 404;
-      } else if (error.message && error.message.includes("401")) {
-        statusCode = 401;
-      }
-      res.status(statusCode).json({ message: `Download failed: ${error.message || 'Unknown error'}` });
+      res.status(error.message.includes("not found") ? 404 : 500).json({
+        message: `Download failed: ${error.message}`,
+      });
     }
   }
 });
