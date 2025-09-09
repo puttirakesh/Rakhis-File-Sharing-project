@@ -23,8 +23,7 @@ mongoose.connect(process.env.MONGODB_URI)
 const allowedOrigins = [
   'http://localhost:3000', // Local development
   'http://localhost:5173', // Vite default port
-  'https://your-frontend-domain.vercel.app', // Your production frontend
-  'https://your-app.onrender.com', // Your Render app (if serving frontend)
+  'https://chandan-kumars-educational-resource-hub-23qt.onrender.com', // Your production frontend
   process.env.VITE_CLIENT_URL // Environment variable
 ];
 
