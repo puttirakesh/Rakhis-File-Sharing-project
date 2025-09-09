@@ -24,26 +24,24 @@ const allowedOrigins = [
   'http://localhost:3000', // Local development
   'http://localhost:5173', // Vite default port
   'https://chandan-kumars-educational-resource-hub-23qt.onrender.com', // Your production frontend
+  'https://chandan-kumars-educational-resource-hub.onrender.com/', // Your production backend
   process.env.VITE_CLIENT_URL // Environment variable
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, Postman, etc.)
+    // Allow requests with no origin (like mobile apps, Postman)
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      // Log blocked origins for debugging
       console.log('Blocked by CORS:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
 
 // Schemas
