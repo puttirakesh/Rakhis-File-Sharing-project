@@ -131,6 +131,10 @@ const requireTeacher = (req, res, next) => {
 };
 
 // Routes
+app.get('/', (req, res) => {
+  res.json({ message: 'Server is running!' });
+});
+
 app.post("/api/register", async (req, res) => {
   try {
     const { name, email, password, role, teacherKey } = req.body;
