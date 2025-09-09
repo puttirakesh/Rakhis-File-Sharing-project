@@ -988,7 +988,7 @@ function App() {
               {isTeacherKeyLogin ? (
                 <>
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                    <label className="text-sm font-medium text-gray-700 mb-1 flex items-center">
                       <FontAwesomeIcon icon={faLock} className="mr-2 text-indigo-600" />
                       Teacher Access Key
                     </label>
@@ -1123,7 +1123,7 @@ function App() {
               </div>
               {registerRole === 'teacher' && (
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                  <label className="text-sm font-medium text-gray-700 mb-1 flex items-center">
                     <FontAwesomeIcon icon={faLock} className="mr-2 text-indigo-600" />
                     Teacher Access Key
                   </label>
