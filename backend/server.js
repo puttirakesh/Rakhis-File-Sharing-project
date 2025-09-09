@@ -21,21 +21,30 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // CORS Configuration
 const allowedOrigins = [
-  "http://localhost:5173",
-  "https://chandan-kumar-file-sharing-platform-theta.vercel.app",
-  "https://chandan-kumar-file-sharing-platform.vercel.app/"
+  'http://localhost:3000', // Local development
+  'http://localhost:5173', // Vite default port
+  'https://your-frontend-domain.vercel.app', // Your production frontend
+  'https://your-app.onrender.com', // Your Render app (if serving frontend)
+  process.env.VITE_CLIENT_URL // Environment variable
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow requests with no origin (like mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS"));
+      // Log blocked origins for debugging
+      console.log('Blocked by CORS:', origin);
+      callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
 
 // Schemas
