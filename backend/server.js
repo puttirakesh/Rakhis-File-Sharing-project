@@ -24,10 +24,12 @@ const allowedOrigins = [
   'http://localhost:3000', // Local development
   'http://localhost:5173', // Vite default port
   'https://chandan-kumars-educational-resource-hub-23qt.onrender.com', // Your production frontend
-  'https://chandan-kumars-educational-resource-hub.onrender.com/', // Your production backend
-  process.env.VITE_CLIENT_URL // Environment variable
-];
+  'https://chandan-kumars-educational-resource-hub.onrender.com', // Your production backend (NO trailing slash)
+  process.env.VITE_CLIENT_URL, // Environment variable
+  process.env.VITE_SERVER_URL // Another environment variable
+].filter(Boolean); // Remove any undefined values
 
+// 2. THEN use it in CORS middleware
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, Postman)
@@ -44,6 +46,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
 
+app.options('*', cors());
 // Schemas
 const topicSchema = new mongoose.Schema({
   title: { type: String, required: true },
@@ -450,6 +453,20 @@ app.get("/api/download/:fileId", async (req, res) => {
 });
 
 // Error middleware
+
+// Error handling middleware for CORS errors
+app.use((err, req, res, next) => {
+  if (err.message === 'Not allowed by CORS') {
+    res.status(403).json({ 
+      error: 'CORS policy blocked this request',
+      allowedOrigins: allowedOrigins,
+      yourOrigin: req.headers.origin
+    });
+  } else {
+    next(err);
+  }
+});
+
 app.use((error, req, res, next) => {
   console.error("Global error:", error.message, error.stack);
   if (!res.headersSent) {

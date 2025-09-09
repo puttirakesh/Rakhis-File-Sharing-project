@@ -26,9 +26,7 @@ import {
 import image from './assets/chandan-kumar.jpg';
 
 // In your frontend, use environment variables
-const API_URL = import.meta.env.PROD 
-  ? 'https://chandan-kumars-educational-resource-hub.onrender.com/' 
-  : 'http://localhost:5000';
+const API_URL = 'https://chandan-kumars-educational-resource-hub.onrender.com/api';
 const fetchDefaults = {
   headers: {
     'Content-Type': 'application/json'
