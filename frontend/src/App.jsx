@@ -26,7 +26,9 @@ import {
 import image from './assets/chandan-kumar.jpg';
 
 // In your frontend, use environment variables
-const API_URL = 'https://chandan-kumars-educational-resource-hub.onrender.com/api';
+// const API_URL = 'https://chandan-kumars-educational-resource-hub.onrender.com/api';
+
+const API_URL = 'http://localhost:5000';
 const fetchDefaults = {
   headers: {
     'Content-Type': 'application/json'
@@ -645,34 +647,34 @@ function App() {
           </div>
         )}
 
-        {/* Topics Section */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8 border border-gray-100 transform hover:shadow-xl transition-all duration-300">
+          {/* Topics Section */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-              <FontAwesomeIcon icon={faFolderOpen} className="mr-2 text-indigo-600" />
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+              <FontAwesomeIcon icon={faFolderOpen} className="mr-3 text-indigo-700" />
               Course Topics
             </h2>
-            <div className="text-sm text-gray-500">{topics.length} topics available</div>
+            <div className="text-sm font-medium text-gray-600 bg-gray-50 px-3 py-1 rounded-full">{topics.length} topics available</div>
           </div>
 
           {user && user.role === 'teacher' && (
-            <div className="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Add New Topic</h3>
-              <div className="flex flex-col md:flex-row gap-3">
+            <div className="bg-gradient-to-r from-gray-50 to-white p-5 rounded-xl mb-6 border border-gray-200 shadow-inner">
+              <h3 className="text-md font-semibold text-gray-800 mb-4">Add New Topic</h3>
+              <div className="flex flex-col md:flex-row gap-4">
                 <input
-                  className="border border-gray-300 rounded-lg px-4 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                  className="border border-gray-300 rounded-lg px-4 py-2.5 flex-grow focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-sm placeholder-gray-400 transition-all duration-200"
                   value={newTopicTitle}
-                  placeholder="Topic Title"
+                  placeholder="Enter Topic Title"
                   onChange={e => setNewTopicTitle(e.target.value)}
                 />
                 <input
-                  className="border border-gray-300 rounded-lg px-4 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                  className="border border-gray-300 rounded-lg px-4 py-2.5 flex-grow focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-sm placeholder-gray-400 transition-all duration-200"
                   value={newTopicDesc}
-                  placeholder="Topic Description"
+                  placeholder="Enter Topic Description"
                   onChange={e => setNewTopicDesc(e.target.value)}
                 />
                 <button
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors duration-200 font-medium text-sm whitespace-nowrap"
+                  className="bg-indigo-700 text-white px-6 py-2.5 rounded-lg hover:bg-indigo-800 transition-all duration-200 font-medium text-sm shadow-md hover:shadow-lg transform hover:-translate-y-1"
                   onClick={handleCreateTopic}
                 >
                   Add Topic
@@ -682,13 +684,13 @@ function App() {
           )}
 
           {topics.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {topics.map(topic => (
-                <div key={topic._id} className="relative group border border-gray-200 rounded-lg hover:border-indigo-300 transition-colors duration-200 bg-white">
+                <div key={topic._id} className="relative group border border-gray-200 rounded-xl bg-white hover:border-indigo-400 transition-all duration-300 overflow-hidden shadow-sm hover:shadow-md">
                   {user && user.role === 'teacher' && (
-                    <div className="absolute top-3 right-3 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                    <div className="absolute top-3 right-3 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10">
                       <button
-                        className="bg-blue-100 text-blue-700 hover:bg-blue-200 p-2 rounded-md transition-colors duration-200"
+                        className="bg-blue-100 text-blue-700 hover:bg-blue-200 p-2 rounded-full transition-all duration-200"
                         onClick={() => {
                           setEditTopicId(topic._id);
                           setEditTopicTitle(topic.title);
@@ -696,72 +698,72 @@ function App() {
                         }}
                         title="Edit Topic"
                       >
-                        <FontAwesomeIcon icon={faEdit} size="xs" />
+                        <FontAwesomeIcon icon={faEdit} size="sm" />
                       </button>
                       <button
-                        className="bg-red-100 text-red-700 hover:bg-red-200 p-2 rounded-md transition-colors duration-200"
+                        className="bg-red-100 text-red-700 hover:bg-red-200 p-2 rounded-full transition-all duration-200"
                         onClick={() => handleTopicDelete(topic._id)}
                         title="Delete Topic"
                       >
-                        <FontAwesomeIcon icon={faTrash} size="xs" />
+                        <FontAwesomeIcon icon={faTrash} size="sm" />
                       </button>
                     </div>
                   )}
                   <button
-                    className={`w-full text-left p-4 transition-all duration-200 ${selectedTopic === topic._id ? 'bg-indigo-50 border-indigo-100' : 'hover:bg-gray-50'}`}
+                    className={`w-full text-left p-5 transition-all duration-300 ${selectedTopic === topic._id ? 'bg-indigo-50 border-l-4 border-indigo-600' : 'hover:bg-gray-50'}`}
                     onClick={() => setSelectedTopic(topic._id)}
                   >
-                    <div className="flex items-center mb-3">
-                      <div className="bg-indigo-100 p-2 rounded-lg mr-3">
-                        <FontAwesomeIcon icon={topicIcons(topic.title)} className="text-indigo-600 text-lg" />
+                    <div className="flex items-center mb-4">
+                      <div className="bg-indigo-100 p-3 rounded-lg mr-4 shadow-md">
+                        <FontAwesomeIcon icon={topicIcons(topic.title)} className="text-indigo-700 text-xl" />
                       </div>
-                      <h3 className="font-medium text-gray-800">{topic.title}</h3>
+                      <h3 className="font-semibold text-gray-900 text-lg">{topic.title}</h3>
                     </div>
                     <p className="text-gray-600 text-sm mb-4 line-clamp-2">{topic.description || 'No description available'}</p>
-                    <div className="flex justify-between text-xs text-gray-500">
+                    <div className="flex justify-between text-xs text-gray-500 font-medium">
                       <span>{new Date(topic.createdAt).toLocaleDateString()}</span>
-                      <span className="text-indigo-600 font-medium">{files.filter(f => f.topic.toString() === topic._id).length} files</span>
+                      <span className="text-indigo-700">{files.filter(f => f.topic.toString() === topic._id).length} files</span>
                     </div>
                   </button>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <div className="bg-gray-100 inline-block p-4 rounded-full mb-3">
-                <FontAwesomeIcon icon={faFolderOpen} className="text-gray-400 text-2xl" />
+            <div className="text-center py-10 bg-gray-50 rounded-xl">
+              <div className="bg-gray-200 inline-block p-5 rounded-full mb-4">
+                <FontAwesomeIcon icon={faFolderOpen} className="text-gray-500 text-3xl" />
               </div>
-              <p className="text-gray-500 text-sm">No topics available. {user && user.role === 'teacher' ? 'Create one to get started!' : 'Please contact your instructor for materials.'}</p>
+              <p className="text-gray-600 text-base">No topics available. {user && user.role === 'teacher' ? 'Create one to get started!' : 'Please contact your instructor for materials.'}</p>
             </div>
           )}
         </div>
 
-        {/* Files Section */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 transform hover:shadow-xl transition-all duration-300">
+          {/* Files Section */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-800 flex items-center">
-              <FontAwesomeIcon icon={faFileAlt} className="mr-2 text-green-600" />
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+              <FontAwesomeIcon icon={faFileAlt} className="mr-3 text-green-700" />
               {topics.find(t => t._id === selectedTopic)?.title || 'All'} Files
             </h2>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm font-medium text-gray-600 bg-gray-50 px-3 py-1 rounded-full">
               {files.filter(f => !selectedTopic || f.topic.toString() === selectedTopic).length} files
             </div>
           </div>
 
           {files.filter(f => !selectedTopic || f.topic.toString() === selectedTopic).length === 0 ? (
-            <div className="text-center py-8">
-              <div className="bg-gray-100 inline-block p-4 rounded-full mb-3">
-                <FontAwesomeIcon icon={faFileAlt} className="text-gray-400 text-2xl" />
+            <div className="text-center py-10 bg-gray-50 rounded-xl">
+              <div className="bg-gray-200 inline-block p-5 rounded-full mb-4">
+                <FontAwesomeIcon icon={faFileAlt} className="text-gray-500 text-3xl" />
               </div>
-              <p className="text-gray-500 text-sm">No files found. {user && user.role === 'teacher' ? 'Upload some files to get started.' : 'Files will appear here once uploaded.'}</p>
+              <p className="text-gray-600 text-base">No files found. {user && user.role === 'teacher' ? 'Upload some files to get started.' : 'Files will appear here once uploaded.'}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {files.filter(f => !selectedTopic || f.topic.toString() === selectedTopic).map(file => (
-                <div key={file._id} className="border border-gray-200 rounded-lg bg-white hover:shadow-md transition-shadow duration-200">
-                  <div className="p-4">
-                    <div className="flex items-start mb-4">
-                      <div className={`p-3 rounded-lg mr-3 ${file.fileType.includes('pdf') ? 'bg-red-100 text-red-700' :
+                <div key={file._id} className="border border-gray-200 rounded-xl bg-white hover:shadow-lg transition-all duration-300 overflow-hidden">
+                  <div className="p-5">
+                    <div className="flex items-start mb-5">
+                      <div className={`p-3 rounded-lg mr-4 shadow-md ${file.fileType.includes('pdf') ? 'bg-red-100 text-red-700' :
                         file.fileType.includes('word') || file.fileType.includes('doc') ? 'bg-blue-100 text-blue-700' :
                           file.fileType.includes('powerpoint') || file.fileType.includes('presentation') || file.fileType.includes('ppt') ? 'bg-orange-100 text-orange-700' :
                             'bg-gray-100 text-gray-700'
@@ -773,47 +775,47 @@ function App() {
                                 file.fileType.includes('powerpoint') || file.fileType.includes('presentation') || file.fileType.includes('ppt') ? faFilePowerpoint :
                                   faFileAlt
                           }
-                          className="text-lg"
+                          className="text-xl"
                         />
                       </div>
                       <div className="flex-grow min-w-0">
-                        <h3 className="font-medium text-gray-800 text-sm break-words line-clamp-2">{file.originalName}</h3>
+                        <h3 className="font-medium text-gray-900 text-base break-words line-clamp-2">{file.originalName}</h3>
                         <p className="text-gray-500 text-xs mt-1">
                           {Math.round((file.fileSize || 0) / 1024)} KB • {new Date(file.uploadedAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
                     {user && user.role === 'teacher' && (
-                      <div className="flex space-x-2 mb-4">
+                      <div className="flex space-x-3 mb-5">
                         <button
-                          className="bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-1.5 rounded-md text-xs transition-colors duration-200 flex items-center"
+                          className="bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-2 rounded-lg text-sm transition-all duration-200 flex items-center"
                           onClick={() => handleFileEditPrompt(file._id, file.originalName)}
                         >
-                          <FontAwesomeIcon icon={faEdit} className="mr-1" />
+                          <FontAwesomeIcon icon={faEdit} className="mr-2" />
                           Rename
                         </button>
                         <button
-                          className="bg-red-50 text-red-700 hover:bg-red-100 px-3 py-1.5 rounded-md text-xs transition-colors duration-200 flex items-center"
+                          className="bg-red-50 text-red-700 hover:bg-red-100 px-4 py-2 rounded-lg text-sm transition-all duration-200 flex items-center"
                           onClick={() => handleFileDelete(file._id)}
                         >
-                          <FontAwesomeIcon icon={faTrash} className="mr-1" />
+                          <FontAwesomeIcon icon={faTrash} className="mr-2" />
                           Delete
                         </button>
                       </div>
                     )}
                     <button
                       onClick={() => handleFileDownload(file._id, file.originalName)}
-                      className="w-full bg-green-600 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-green-700 text-white py-2.5 px-5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={isDownloading[file._id]}
                     >
                       {isDownloading[file._id] ? (
                         <>
-                          <FontAwesomeIcon icon={faSpinner} className="mr-1.5 animate-spin" />
+                          <FontAwesomeIcon icon={faSpinner} className="mr-2 animate-spin" />
                           Downloading...
                         </>
                       ) : (
                         <>
-                          <FontAwesomeIcon icon={faDownload} className="mr-1.5" />
+                          <FontAwesomeIcon icon={faDownload} className="mr-2" />
                           Download
                         </>
                       )}

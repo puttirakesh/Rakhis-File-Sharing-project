@@ -21,10 +21,8 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // CORS Configuration
 const allowedOrigins = [
-  'http://localhost:3000', // Local development
-  'http://localhost:5173', // Vite default port
-  'https://chandan-kumars-educational-resource-hub-23qt.onrender.com', // Your production frontend
-  'https://chandan-kumars-educational-resource-hub.onrender.com', // Your production backend (NO trailing slash)
+  // 'https://chandan-kumars-educational-resource-hub-23qt.onrender.com',
+  // 'https://chandan-kumars-educational-resource-hub.onrender.com'
   process.env.VITE_CLIENT_URL, // Environment variable
   process.env.VITE_SERVER_URL // Another environment variable
 ].filter(Boolean); // Remove any undefined values
@@ -46,7 +44,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
 
-app.options('*', cors());
+// app.options('*', cors());
 // Schemas
 const topicSchema = new mongoose.Schema({
   title: { type: String, required: true },
