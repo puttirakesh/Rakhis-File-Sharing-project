@@ -22,7 +22,7 @@ mongoose.connect(process.env.MONGODB_URI)
 // CORS Configuration
 const allowedOrigins = [
   'https://chandan-kumars-educational-resource-hub-23qt.onrender.com',
-  'https://chandan-kumars-educational-resource-hub.onrender.com'
+  'https://chandan-kumars-educational-resource-hub.onrender.com',
   process.env.VITE_CLIENT_URL, // Environment variable
   process.env.VITE_SERVER_URL // Another environment variable
 ].filter(Boolean); // Remove any undefined values
