@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 const mongoose = require("mongoose");
 
 const FileSchema = new mongoose.Schema(
@@ -51,3 +52,13 @@ const FileSchema = new mongoose.Schema(
 FileSchema.index({ topic: 1, uploadedAt: -1 });
 
 module.exports = mongoose.model("File", FileSchema);
+=======
+const mongoose = require('mongoose');
+const FileSchema = new mongoose.Schema({
+  filename: String,
+  originalName: String,
+  topicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Topic' },
+  uploadDate: Date
+});
+module.exports = mongoose.model('File', FileSchema);
+>>>>>>> 8678e181a408c854c1a2f3a6a60ea54319b81b6f
